@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Office Chores</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <h1 class="header-title">Office Chores</h1>
+            <nav class="header-nav">
+                <button class="nav-btn active" data-view="calendar">Calendar</button>
+                <button class="nav-btn" data-view="chores">All Chores</button>
+                <button class="nav-btn" data-view="history">History</button>
+            </nav>
+        </header>
+
+        <!-- Main Layout -->
+        <div class="main-layout">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="sidebar-section">
+                    <div class="section-header">
+                        <h2>Team Members</h2>
+                        <button class="btn-icon" id="add-member-btn" title="Add team member">+</button>
+                    </div>
+                    <ul class="team-list" id="team-list">
+                        <!-- Team members populated by JS -->
+                    </ul>
+                </div>
+
+                <div class="sidebar-section">
+                    <button class="btn btn-primary" id="add-chore-btn">+ Add Chore</button>
+                </div>
+
+                <div class="sidebar-section">
+                    <div class="section-header">
+                        <h2>Quick Actions</h2>
+                    </div>
+                    <button class="btn btn-secondary" id="export-btn">Export Data</button>
+                    <button class="btn btn-secondary" id="import-btn">Import Data</button>
+                    <input type="file" id="import-file" accept=".json" style="display: none;">
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="main-content">
+                <!-- Calendar View -->
+                <div class="view" id="calendar-view">
+                    <div class="calendar-header">
+                        <button class="btn btn-secondary" id="prev-week">&lt; Prev</button>
+                        <button class="btn btn-secondary" id="today-btn">Today</button>
+                        <button class="btn btn-secondary" id="next-week">Next &gt;</button>
+                        <span class="week-display" id="week-display"></span>
+                    </div>
+                    <div class="calendar-grid" id="calendar-grid">
+                        <!-- Calendar populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Chores List View -->
+                <div class="view hidden" id="chores-view">
+                    <div class="chores-header">
+                        <h2>All Chores</h2>
+                        <div class="filter-controls">
+                            <select id="filter-assignee">
+                                <option value="">All Members</option>
+                            </select>
+                            <select id="filter-status">
+                                <option value="">All Status</option>
+                                <option value="pending">Pending</option>
+                                <option value="completed">Completed</option>
+                                <option value="overdue">Overdue</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="chores-list" id="chores-list">
+                        <!-- Chores populated by JS -->
+                    </div>
+                </div>
+
+                <!-- History View -->
+                <div class="view hidden" id="history-view">
+                    <div class="history-header">
+                        <h2>Completion History</h2>
+                    </div>
+                    <div class="history-list" id="history-list">
+                        <!-- History populated by JS -->
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal Container -->
+    <div class="modal-overlay hidden" id="modal-overlay">
+        <div class="modal" id="modal">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modal-title">Modal Title</h2>
+                <button class="btn-icon modal-close" id="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- Modal content populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Chore Form Template -->
+    <template id="chore-form-template">
+        <form class="chore-form" id="chore-form">
+            <div class="form-group">
+                <label for="chore-title">Title *</label>
+                <input type="text" id="chore-title" name="title" required>
+            </div>
+            <div class="form-group">
+                <label for="chore-description">Description</label>
+                <textarea id="chore-description" name="description" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="chore-assignee">Assign To</label>
+                <select id="chore-assignee" name="assigned_to">
+                    <option value="">Unassigned</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="chore-recurring" name="is_recurring">
+                    Recurring Chore
+                </label>
+            </div>
+            <div class="form-group" id="due-date-group">
+                <label for="chore-due-date">Due Date & Time *</label>
+                <input type="datetime-local" id="chore-due-date" name="due_date" required>
+            </div>
+            <div class="form-group hidden" id="recurrence-group">
+                <label for="recurrence-preset">Recurrence Pattern</label>
+                <select id="recurrence-preset" name="recurrence_preset">
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly (same day)</option>
+                    <option value="weekdays">Weekdays (Mon-Fri)</option>
+                    <option value="biweekly">Every 2 weeks</option>
+                    <option value="monthly">Monthly (same date)</option>
+                    <option value="first-weekday">First [weekday] of month</option>
+                    <option value="last-weekday">Last [weekday] of month</option>
+                    <option value="custom">Custom (cron expression)</option>
+                </select>
+                <div class="form-group hidden" id="custom-cron-group">
+                    <label for="custom-cron">Cron Expression</label>
+                    <input type="text" id="custom-cron" name="custom_cron" placeholder="0 9 * * 1">
+                </div>
+                <div class="form-group">
+                    <label for="recurrence-time">Time</label>
+                    <input type="time" id="recurrence-time" name="recurrence_time" value="09:00">
+                </div>
+                <div class="recurrence-preview" id="recurrence-preview">
+                    <strong>Preview:</strong> <span id="recurrence-description"></span>
+                </div>
+            </div>
+            <input type="hidden" id="chore-id" name="id">
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" id="cancel-chore">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Chore</button>
+            </div>
+        </form>
+    </template>
+
+    <!-- Team Member Form Template -->
+    <template id="member-form-template">
+        <form class="member-form" id="member-form">
+            <div class="form-group">
+                <label for="member-name">Name *</label>
+                <input type="text" id="member-name" name="name" required>
+            </div>
+            <div class="form-group">
+                <label for="member-color">Color</label>
+                <input type="color" id="member-color" name="color" value="#4A90D9">
+            </div>
+            <input type="hidden" id="member-id" name="id">
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" id="cancel-member">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Member</button>
+            </div>
+        </form>
+    </template>
+
+    <!-- Chore Detail Template -->
+    <template id="chore-detail-template">
+        <div class="chore-detail">
+            <div class="chore-detail-header">
+                <span class="chore-status" id="detail-status"></span>
+            </div>
+            <p class="chore-description" id="detail-description"></p>
+            <div class="chore-meta">
+                <div class="meta-item">
+                    <strong>Assigned to:</strong>
+                    <span id="detail-assignee"></span>
+                </div>
+                <div class="meta-item">
+                    <strong>Due:</strong>
+                    <span id="detail-due"></span>
+                </div>
+                <div class="meta-item" id="detail-recurrence-row">
+                    <strong>Recurrence:</strong>
+                    <span id="detail-recurrence"></span>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" id="edit-chore-btn">Edit</button>
+                <button class="btn btn-danger" id="delete-chore-btn">Delete</button>
+                <button class="btn btn-success" id="complete-chore-btn">Mark Complete</button>
+            </div>
+        </div>
+    </template>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/cronstrue@latest/dist/cronstrue.min.js"></script>
+    <script src="{{ url_for('static', filename='js/storage.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/team.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/recurring.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chores.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/calendar.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
